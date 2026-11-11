@@ -103,7 +103,24 @@
   #missingBtn { background: #4a6fa5; }
   #missingBtn.on { background: #2b4a75; }
   #copyBtn { background: var(--accent); }
+  #editBtn { background: #7a6a55; }
+  #editBtn.on { background: #4d4234; }
+  .act {
+    display: none;
+    background: none; border: none;
+    font-size: 1.1rem; padding: 6px 8px; cursor: pointer;
+  }
+  body.editing .act { display: inline-block; }
+  .edit-note {
+    display: none;
+    background: #fff4e0; border: 1px solid #f0d9a8;
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+    font-size: .9rem;
+  }
+  .edit-note a { color: var(--accent); }
+  body.editing .edit-note { display: block; }
   @media (max-width: 480px) {
+    .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
     .toolbar button { padding: 10px 4px; font-size: .9rem; }
   }
   body.only-missing li.packed,
@@ -143,7 +160,9 @@
     <button id="saveBtn">💾 שמור</button>
     <button id="missingBtn">🔍 מה חסר</button>
     <button id="copyBtn">📋 העתק מה ארזתי</button>
+    <button id="editBtn">✏️ עריכה</button>
   </div>
+  <div class="edit-note">מצב עריכה: ✏️ לשינוי שם, 🗑️ למחיקה. <a href="#" id="restoreBtn">שחזור פריטים שנמחקו</a></div>
 
   <div class="empty-msg">🎉 הכול ארוז! לא חסר כלום</div>
   <div id="list"></div>
@@ -195,9 +214,12 @@ function save() {
 let state = load();
 state.checked = state.checked || {};
 state.added = state.added || {};
+state.renamed = state.renamed || {};   // שינוי שם לפריט קבוע
+state.removed = state.removed || {};   // פריט קבוע שנמחק
 
-function itemRow(bagId, text, isCustom) {
-  const key = bagId + "|" + text;
+function itemRow(bagId, origText, isCustom) {
+  const key = bagId + "|" + origText;
+  const shown = isCustom ? origText : (state.renamed[key] || origText);
   const li = document.createElement("li");
   const label = document.createElement("label");
   const cb = document.createElement("input");
@@ -208,22 +230,41 @@ function itemRow(bagId, text, isCustom) {
     save(); updateProgress();
   });
   const span = document.createElement("span");
-  span.textContent = text;
+  span.textContent = shown;
   label.append(cb, span);
   li.append(label);
-  if (isCustom) {
-    const del = document.createElement("button");
-    del.className = "del";
-    del.textContent = "✕";
-    del.title = "מחיקה";
-    del.addEventListener("click", () => {
-      if (!confirm("למחוק את \"" + text + "\"?")) return;
-      state.added[bagId] = state.added[bagId].filter(t => t !== text);
-      delete state.checked[key];
-      save(); render();
-    });
-    li.append(del);
-  }
+
+  const edit = document.createElement("button");
+  edit.className = "act";
+  edit.textContent = "✏️";
+  edit.title = "עריכה";
+  edit.addEventListener("click", () => {
+    const t = (prompt("עריכת פריט:", shown) || "").trim();
+    if (!t || t === shown) return;
+    if (isCustom) {
+      const arr = state.added[bagId];
+      arr[arr.indexOf(origText)] = t;
+      const newKey = bagId + "|" + t;
+      if (state.checked[key]) { state.checked[newKey] = true; delete state.checked[key]; }
+    } else {
+      if (t === origText) delete state.renamed[key]; else state.renamed[key] = t;
+    }
+    save(); render();
+  });
+
+  const del = document.createElement("button");
+  del.className = "act";
+  del.textContent = "🗑️";
+  del.title = "מחיקה";
+  del.addEventListener("click", () => {
+    if (!confirm("למחוק את \"" + shown + "\"?")) return;
+    if (isCustom) state.added[bagId] = state.added[bagId].filter(t => t !== origText);
+    else state.removed[key] = true;
+    delete state.checked[key];
+    save(); render();
+  });
+
+  li.append(edit, del);
   return li;
 }
 
@@ -241,7 +282,9 @@ function render() {
       sec.append(h3);
     }
     const ul = document.createElement("ul");
-    bag.items.forEach(t => ul.append(itemRow(bag.id, t, false)));
+    bag.items
+      .filter(t => !state.removed[bag.id + "|" + t])
+      .forEach(t => ul.append(itemRow(bag.id, t, false)));
     (state.added[bag.id] || []).forEach(t => ul.append(itemRow(bag.id, t, true)));
     sec.append(ul);
 
@@ -334,6 +377,23 @@ document.getElementById("copyBtn").addEventListener("click", () => {
   const text = packedText();
   if (!text) { toast("עוד לא סימנת כלום"); return; }
   copyText(text).then(() => toast("✓ הועתק"), () => toast("ההעתקה נכשלה"));
+});
+
+document.getElementById("editBtn").addEventListener("click", e => {
+  const on = document.body.classList.toggle("editing");
+  e.currentTarget.classList.toggle("on", on);
+  e.currentTarget.textContent = on ? "✔ סיום עריכה" : "✏️ עריכה";
+});
+
+document.getElementById("restoreBtn").addEventListener("click", e => {
+  e.preventDefault();
+  const n = Object.keys(state.removed).length + Object.keys(state.renamed).length;
+  if (!n) { toast("אין מה לשחזר"); return; }
+  if (!confirm("להחזיר את הפריטים הקבועים שנמחקו ואת השמות המקוריים?")) return;
+  state.removed = {};
+  state.renamed = {};
+  save(); render();
+  toast("✓ שוחזר");
 });
 
 document.getElementById("missingBtn").addEventListener("click", e => {
