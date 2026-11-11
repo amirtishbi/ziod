@@ -159,7 +159,7 @@
   <div class="toolbar">
     <button id="saveBtn">💾 שמור</button>
     <button id="missingBtn">🔍 מה חסר</button>
-    <button id="copyBtn">📋 העתק מה ארזתי</button>
+    <button id="copyBtn">📋 העתק סטטוס</button>
     <button id="editBtn">✏️ עריכה</button>
   </div>
   <div class="edit-note">מצב עריכה: ✏️ לשינוי שם, 🗑️ למחיקה. <a href="#" id="restoreBtn">שחזור פריטים שנמחקו</a></div>
@@ -343,18 +343,31 @@ document.getElementById("saveBtn").addEventListener("click", () => {
 });
 
 function packedText() {
-  const lines = ["✅ מה ארזתי – קמפינג במכתש רמון", ""];
-  let total = 0;
-  document.querySelectorAll("#list section").forEach(sec => {
-    const items = [...sec.querySelectorAll('input[type="checkbox"]:checked')]
-      .map(b => b.nextElementSibling.textContent);
-    if (!items.length) return;
-    lines.push(sec.querySelector("h2").textContent);
-    items.forEach(t => lines.push("✔ " + t));
-    lines.push("");
-    total += items.length;
-  });
-  return total ? lines.join("\n").trim() : "";
+  const block = (title, checked, mark) => {
+    const out = [title, ""];
+    let n = 0;
+    document.querySelectorAll("#list section").forEach(sec => {
+      const items = [...sec.querySelectorAll('input[type="checkbox"]')]
+        .filter(b => b.checked === checked)
+        .map(b => b.nextElementSibling.textContent);
+      if (!items.length) return;
+      out.push(sec.querySelector("h2").textContent);
+      items.forEach(t => out.push(mark + " " + t));
+      out.push("");
+      n += items.length;
+    });
+    if (!n) out.push(checked ? "עוד לא נארז כלום" : "🎉 לא חסר כלום!", "");
+    return out;
+  };
+  const lines = [
+    "🏕️ רשימת אריזה – קמפינג במכתש רמון",
+    "",
+    ...block("✅ ארזתי:", true, "✔"),
+    "──────────",
+    "",
+    ...block("❌ חסר:", false, "☐")
+  ];
+  return lines.join("\n").trim();
 }
 
 function copyText(text) {
@@ -375,7 +388,6 @@ function copyText(text) {
 
 document.getElementById("copyBtn").addEventListener("click", () => {
   const text = packedText();
-  if (!text) { toast("עוד לא סימנת כלום"); return; }
   copyText(text).then(() => toast("✓ הועתק"), () => toast("ההעתקה נכשלה"));
 });
 
