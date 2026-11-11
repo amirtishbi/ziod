@@ -102,6 +102,10 @@
   #saveBtn { background: var(--done); }
   #missingBtn { background: #4a6fa5; }
   #missingBtn.on { background: #2b4a75; }
+  #copyBtn { background: var(--accent); }
+  @media (max-width: 480px) {
+    .toolbar button { padding: 10px 4px; font-size: .9rem; }
+  }
   body.only-missing li.packed,
   body.only-missing section.all-packed { display: none; }
   .empty-msg {
@@ -138,6 +142,7 @@
   <div class="toolbar">
     <button id="saveBtn">💾 שמור</button>
     <button id="missingBtn">🔍 מה חסר</button>
+    <button id="copyBtn">📋 העתק מה ארזתי</button>
   </div>
 
   <div class="empty-msg">🎉 הכול ארוז! לא חסר כלום</div>
@@ -292,6 +297,43 @@ function toast(msg) {
 document.getElementById("saveBtn").addEventListener("click", () => {
   save();
   toast("✓ נשמר");
+});
+
+function packedText() {
+  const lines = ["✅ מה ארזתי – קמפינג במכתש רמון", ""];
+  let total = 0;
+  document.querySelectorAll("#list section").forEach(sec => {
+    const items = [...sec.querySelectorAll('input[type="checkbox"]:checked')]
+      .map(b => b.nextElementSibling.textContent);
+    if (!items.length) return;
+    lines.push(sec.querySelector("h2").textContent);
+    items.forEach(t => lines.push("✔ " + t));
+    lines.push("");
+    total += items.length;
+  });
+  return total ? lines.join("\n").trim() : "";
+}
+
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.append(ta);
+    ta.select();
+    try { document.execCommand("copy") ? resolve() : reject(); }
+    catch (e) { reject(e); }
+    ta.remove();
+  });
+}
+
+document.getElementById("copyBtn").addEventListener("click", () => {
+  const text = packedText();
+  if (!text) { toast("עוד לא סימנת כלום"); return; }
+  copyText(text).then(() => toast("✓ הועתק"), () => toast("ההעתקה נכשלה"));
 });
 
 document.getElementById("missingBtn").addEventListener("click", e => {
