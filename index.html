@@ -87,10 +87,41 @@
     color: #fff; background: var(--accent);
     border: none; border-radius: 10px; cursor: pointer;
   }
+  .toolbar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 8px;
+    padding: 8px 0; margin-bottom: 8px;
+    background: var(--bg);
+  }
+  .toolbar button {
+    flex: 1;
+    padding: 12px; font-size: 1rem; font-weight: 600;
+    border: none; border-radius: 10px; cursor: pointer;
+    color: #fff;
+  }
+  #saveBtn { background: var(--done); }
+  #missingBtn { background: #4a6fa5; }
+  #missingBtn.on { background: #2b4a75; }
+  body.only-missing li.packed,
+  body.only-missing section.all-packed { display: none; }
+  .empty-msg {
+    display: none;
+    text-align: center; font-size: 1.1rem; font-weight: 600;
+    color: var(--done); padding: 20px;
+  }
+  body.only-missing.all-done .empty-msg { display: block; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: #2b2b2b; color: #fff;
+    padding: 10px 18px; border-radius: 20px;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
   @media print {
     body { background: #fff; padding: 0; }
     section { break-inside: avoid; border: 1px solid #999; }
-    .progress, .reset, .add-row, .del { display: none; }
+    .progress, .reset, .add-row, .del, .toolbar, .toast { display: none; }
   }
 </style>
 </head>
@@ -104,10 +135,17 @@
     <div class="bar"><span id="barFill"></span></div>
   </div>
 
+  <div class="toolbar">
+    <button id="saveBtn">💾 שמור</button>
+    <button id="missingBtn">🔍 מה חסר</button>
+  </div>
+
+  <div class="empty-msg">🎉 הכול ארוז! לא חסר כלום</div>
   <div id="list"></div>
 
   <button class="reset" id="resetBtn">🔄 איפוס סימונים</button>
 </div>
+<div class="toast" id="toast"></div>
 
 <script>
 /* ===== הרשימה הקבועה – לעריכה כאן ===== */
@@ -234,7 +272,34 @@ function updateProgress() {
   document.getElementById("count").textContent = done;
   document.getElementById("total").textContent = boxes.length;
   document.getElementById("barFill").style.width = boxes.length ? (done / boxes.length * 100) + "%" : "0";
+
+  boxes.forEach(b => b.closest("li").classList.toggle("packed", b.checked));
+  document.querySelectorAll("#list section").forEach(sec => {
+    const all = sec.querySelectorAll('input[type="checkbox"]');
+    sec.classList.toggle("all-packed", all.length > 0 && [...all].every(b => b.checked));
+  });
+  document.body.classList.toggle("all-done", boxes.length > 0 && done === boxes.length);
 }
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+document.getElementById("saveBtn").addEventListener("click", () => {
+  save();
+  toast("✓ נשמר");
+});
+
+document.getElementById("missingBtn").addEventListener("click", e => {
+  const on = document.body.classList.toggle("only-missing");
+  e.currentTarget.classList.toggle("on", on);
+  e.currentTarget.textContent = on ? "📋 הצג הכול" : "🔍 מה חסר";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
 
 document.getElementById("resetBtn").addEventListener("click", () => {
   if (!confirm("לאפס את כל הסימונים? (פריטים שהוספת יישארו)")) return;
