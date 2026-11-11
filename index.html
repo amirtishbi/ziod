@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>רשימת אריזה – מכתש רמון</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --card: #ffffff;
+    --text: #2b2b2b;
+    --muted: #8a8a8a;
+    --accent: #c0622f;
+    --border: #e6dfd4;
+    --done: #3d8b5a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Arial, "Noto Sans Hebrew", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; color: var(--accent); }
+  .subtitle { margin: 0 0 12px; color: var(--muted); }
+  .progress {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .bar { height: 8px; background: var(--border); border-radius: 4px; margin-top: 6px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--done); transition: width .3s; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  h2 { font-size: 1.15rem; margin: 0 0 8px; }
+  h3 { font-size: 1rem; margin: 10px 0 6px; color: var(--muted); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; border-bottom: 1px dashed var(--border); }
+  li:last-child { border-bottom: none; }
+  label {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 2px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  input[type="checkbox"] {
+    width: 22px; height: 22px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    accent-color: var(--done);
+  }
+  input:checked + span { text-decoration: line-through; color: var(--muted); }
+  .del {
+    background: none; border: none; color: var(--muted);
+    font-size: 1.1rem; padding: 6px 10px; cursor: pointer;
+  }
+  .add-row { display: flex; gap: 8px; margin-top: 8px; }
+  .add-row input {
+    flex: 1; min-width: 0;
+    padding: 9px 10px; font-size: 1rem;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit;
+  }
+  .add-row button {
+    padding: 9px 14px; font-size: 1rem; font-weight: 600;
+    color: #fff; background: var(--done);
+    border: none; border-radius: 8px; cursor: pointer;
+  }
+  .reset {
+    display: block; width: 100%;
+    padding: 14px; margin: 20px 0 30px;
+    font-size: 1rem; font-weight: 600;
+    color: #fff; background: var(--accent);
+    border: none; border-radius: 10px; cursor: pointer;
+  }
+  @media print {
+    body { background: #fff; padding: 0; }
+    section { break-inside: avoid; border: 1px solid #999; }
+    .progress, .reset, .add-row, .del { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📋 רשימת אריזה וחלוקה לתיקים – קמפינג במכתש רמון</h1>
+  <p class="subtitle">אמיר, אליה ויובל</p>
+
+  <div class="progress">
+    נארזו <span id="count">0</span> מתוך <span id="total">0</span>
+    <div class="bar"><span id="barFill"></span></div>
+  </div>
+
+  <div id="list"></div>
+
+  <button class="reset" id="resetBtn">🔄 איפוס סימונים</button>
+</div>
+
+<script>
+/* ===== הרשימה הקבועה – לעריכה כאן ===== */
+const BAGS = [
+  { id: "clothes", title: "🧳 תיק 1: בגדים וציוד אישי (תיק נסיעות / צידנית רכה)",
+    sub: "👕 לבוש והנעלה (אמיר, אליה ויובל)",
+    items: [
+      "בגדים חמים לערב וללילה (פליזים, מכנסיים עבים, גרביים חמות)",
+      "בגדים קלים/דקים לשעות היום",
+      "בגדי ים (לרחצה והירטבות)",
+      "כובעים לשמש",
+      "נעליים סגורות וגרביים",
+      "סנדלים (למקלחת ומסלולי מים)"
+    ]},
+  { id: "toilet", title: "🧼 תיק 2: טואלטיקה ורחצה",
+    items: ["3 מגבות", "שמפו", "מברשות שיניים + משחת שיניים", "מסרק", "מגבונים לחים", "נייר טואלט"]},
+  { id: "sleep", title: "⛺ ציוד לינה (לתא המטען / מושב אחורי)",
+    items: ["אוהל", "מצעים ושמיכת פוך", "כרית אחת"]},
+  { id: "kitchen", title: "📦 ארגז / תיק בישול ומטבח",
+    items: ["סיר", "קרש חיתוך", "פומפיה גדולה", "קערות", "סכו\"ם", "כוס נירוסטה (של אליה)", "שקיות זבל"]},
+  { id: "food", title: "🧺 תיק / צידנית אוכל ושתייה",
+    items: [
+      "צידנית (למקרר ברכב/במקום): טופו, ירקות ופירות טריים",
+      "תיק יבש: 2 חבילות פסטה, רוטב לפסטה, מלח, קופסאות שימורים (מאבא)",
+      "בקבוקי שתייה (למילוי במקום)"
+    ]},
+  { id: "backpack", title: "🎒 תיק גב קטן (נגיש ליד הנהג ברכב)",
+    items: ["בקבוק מים זמין לדרך", "חבילת מגבונים לחים קטנה / נייר טואלט לדרך"]}
+];
+/* ======================================= */
+
+const KEY = "ramon-packing-v2";
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { checked: {}, added: {} }; }
+  catch (e) { return { checked: {}, added: {} }; }
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+let state = load();
+state.checked = state.checked || {};
+state.added = state.added || {};
+
+function itemRow(bagId, text, isCustom) {
+  const key = bagId + "|" + text;
+  const li = document.createElement("li");
+  const label = document.createElement("label");
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !!state.checked[key];
+  cb.addEventListener("change", () => {
+    if (cb.checked) state.checked[key] = true; else delete state.checked[key];
+    save(); updateProgress();
+  });
+  const span = document.createElement("span");
+  span.textContent = text;
+  label.append(cb, span);
+  li.append(label);
+  if (isCustom) {
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "✕";
+    del.title = "מחיקה";
+    del.addEventListener("click", () => {
+      if (!confirm("למחוק את \"" + text + "\"?")) return;
+      state.added[bagId] = state.added[bagId].filter(t => t !== text);
+      delete state.checked[key];
+      save(); render();
+    });
+    li.append(del);
+  }
+  return li;
+}
+
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  BAGS.forEach(bag => {
+    const sec = document.createElement("section");
+    const h2 = document.createElement("h2");
+    h2.textContent = bag.title;
+    sec.append(h2);
+    if (bag.sub) {
+      const h3 = document.createElement("h3");
+      h3.textContent = bag.sub;
+      sec.append(h3);
+    }
+    const ul = document.createElement("ul");
+    bag.items.forEach(t => ul.append(itemRow(bag.id, t, false)));
+    (state.added[bag.id] || []).forEach(t => ul.append(itemRow(bag.id, t, true)));
+    sec.append(ul);
+
+    const row = document.createElement("div");
+    row.className = "add-row";
+    const input = document.createElement("input");
+    input.placeholder = "הוספת פריט...";
+    const btn = document.createElement("button");
+    btn.textContent = "הוספה";
+    const add = () => {
+      const t = input.value.trim();
+      if (!t) return;
+      state.added[bag.id] = state.added[bag.id] || [];
+      if (!state.added[bag.id].includes(t) && !bag.items.includes(t)) {
+        state.added[bag.id].push(t);
+        save(); render();
+      }
+      input.value = "";
+    };
+    btn.addEventListener("click", add);
+    input.addEventListener("keydown", e => { if (e.key === "Enter") add(); });
+    row.append(input, btn);
+    sec.append(row);
+
+    list.append(sec);
+  });
+  updateProgress();
+}
+
+function updateProgress() {
+  const boxes = document.querySelectorAll('#list input[type="checkbox"]');
+  const done = [...boxes].filter(b => b.checked).length;
+  document.getElementById("count").textContent = done;
+  document.getElementById("total").textContent = boxes.length;
+  document.getElementById("barFill").style.width = boxes.length ? (done / boxes.length * 100) + "%" : "0";
+}
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("לאפס את כל הסימונים? (פריטים שהוספת יישארו)")) return;
+  state.checked = {};
+  save(); render();
+});
+
+render();
+</script>
+</body>
+</html>
